@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>烏腦袋 Pigeon Brain</title>
+    <title>烏腦袋</title>
     <!-- Web App 獨立全螢幕模式與圖示設定 -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -28,16 +28,17 @@
 </head>
 <body class="bg-slate-50 min-h-screen text-slate-800 pb-12">
 
-    <!-- 密碼未通過時顯示的鎖定畫面 -->
+    <!-- 🔒 安全密碼鎖定畫面 -->
     <div id="lock-screen" class="fixed inset-0 bg-slate-900 z-50 flex flex-col items-center justify-center p-6 text-white">
-        <div class="text-6xl mb-4 animate-bounce">🔒</div>
-        <h1 class="text-2xl font-bold mb-2">烏腦袋 Pigeon Brain</h1>
-        <p class="text-slate-400 text-sm mb-6">請輸入存取密碼以存取雲端資料庫</p>
+        <div class="text-6xl mb-4 animate-bounce">🐦</div>
+        <h1 class="text-2xl font-bold mb-1">烏腦袋</h1>
+        <p class="text-slate-400 text-xs mb-6">請輸入通關密碼解鎖存取權限</p>
+        
         <div class="w-full max-w-xs space-y-3">
-            <input type="password" id="password-input" placeholder="請輸入密碼..." class="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-center text-lg text-white focus:outline-none focus:border-indigo-500">
-            <button onclick="verifyPassword()" class="w-full py-3 bg-indigo-600 hover:bg-indigo-500 font-bold rounded-xl transition shadow-lg">解鎖 App</button>
+            <input type="password" id="password-input" placeholder="請輸入密碼..." class="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-center text-lg text-white focus:outline-none focus:border-indigo-500 shadow-inner">
+            <button onclick="verifyPassword()" class="w-full py-3 bg-indigo-600 hover:bg-indigo-500 font-bold rounded-xl transition shadow-lg active:scale-95">解鎖 App</button>
         </div>
-        <p id="error-msg" class="text-red-400 text-xs mt-3 hidden">❌ 密碼錯誤，請重新輸入！</p>
+        <p id="error-msg" class="text-red-400 text-xs mt-3 hidden">❌ 密碼錯誤，存取被拒絕！</p>
     </div>
 
     <!-- App 主體介面 (預設隱藏，密碼驗證通過後才顯示) -->
@@ -102,20 +103,18 @@
 
             <!-- 重新鎖定按鈕 -->
             <div class="text-center pt-2">
-                <button onclick="lockApp()" class="text-xs text-slate-400 hover:text-slate-600 underline">🔒 重新鎖定 App (清除本地認證)</button>
+                <button onclick="lockApp()" class="text-xs text-slate-400 hover:text-slate-600 underline">🔒 重新鎖定 App (清除本地登入權限)</button>
             </div>
         </main>
     </div>
 
     <!-- 邏輯腳本 -->
     <script>
-        // ==========================================
-        // 1. 安全密碼設定 (請在下方修改為你們的密碼)
-        // ==========================================
-        const APP_PASSWORD = "20241225"; 
+        // 1. Password
+        const PASSWORD_HASH = "8aa5b14504d81db6bef24e97c677b36fc7eebf37b1b8485cfbe22a690bf9d99e";
 
         // ==========================================
-        // 2. Firebase 金鑰設定 (請填入你的 Firebase 設定)
+        // 2. Firebase
         // ==========================================
         const firebaseConfig = {
             apiKey: "AIzaSyBRTeWd0jgIlItcUzcQhEHS4juHjqo-6CU",
@@ -131,8 +130,15 @@
         let currentUser = localStorage.getItem("pigeon_user") || "WC_bb";
 
         // ==========================================
-        // 3. 密碼驗證邏輯
+        // 3. 原生 SHA-256 雜湊密碼驗證邏輯
         // ==========================================
+        async function sha256(str) {
+            const buffer = new TextEncoder().encode(str);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
         function checkAuth() {
             const isAuth = localStorage.getItem("pigeon_auth");
             if (isAuth === "true") {
@@ -140,9 +146,11 @@
             }
         }
 
-        function verifyPassword() {
+        async function verifyPassword() {
             const input = document.getElementById("password-input").value;
-            if (input === APP_PASSWORD) {
+            const inputHash = await sha256(input);
+
+            if (inputHash === PASSWORD_HASH) {
                 localStorage.setItem("pigeon_auth", "true");
                 unlockApp();
             } else {
@@ -161,13 +169,13 @@
             location.reload();
         }
 
-        // 支持按 Enter 鍵解鎖
+        // 支援按 Enter 鍵快速解鎖
         document.getElementById("password-input")?.addEventListener("keypress", function(e) {
             if (e.key === "Enter") verifyPassword();
         });
 
         // ==========================================
-        // 4. Firebase 初始化與資料同步
+        // 4. Firebase 初始化與資料同步 (未解鎖前完全不連線)
         // ==========================================
         function initFirebase() {
             if (!firebase.apps.length) {
@@ -180,7 +188,7 @@
             listenToPrivateData();
         }
 
-        // 切換使用者身份
+        // 切換使用者身份 (WC bb / TT bb)
         function switchUser(user) {
             currentUser = user;
             localStorage.setItem("pigeon_user", user);
@@ -229,7 +237,7 @@
         // --- 🔒 私密事項 Firebase 操作 ---
         function listenToPrivateData() {
             const privateRef = `private_brain_state_${currentUser}`;
-            db.ref(privateRef).off(); // 先取消舊監聽
+            db.ref(privateRef).off(); // 清除舊監聽
             db.ref(privateRef).on("value", (snapshot) => {
                 const data = snapshot.val() || {};
                 renderList("private-list", data, false);
@@ -261,7 +269,7 @@
             db.ref(path).remove();
         }
 
-        // --- 渲染畫面 ---
+        // --- 畫面渲染 ---
         function renderList(elementId, data, isShared) {
             const container = document.getElementById(elementId);
             container.innerHTML = "";
@@ -289,7 +297,7 @@
             });
         }
 
-        // 頁面載入時先執行密碼檢查
+        // 頁面載入時自動執行驗證檢查
         window.onload = checkAuth;
     </script>
 </body>
