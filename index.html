@@ -1,230 +1,122 @@
 <!DOCTYPE html>
-<html lang="zh-HK" class="dark">
+<html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>烏腦袋</title>
-    
-    <!-- Tailwind CSS 介面美化 -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        darkbg: '#000000',
-                        cardbg: '#121212',
-                        borderbg: '#27272a'
-                    }
-                }
-            }
-        }
-    </script>
-    <!-- FontAwesome 圖標 -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-    <!-- PWA 與 APP Icon 設定 -->
-    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>烏腦袋 Pigeon Brain</title>
+    <!-- Web App 獨立全螢幕模式與圖示設定 -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="烏腦袋">
-    <meta name="theme-color" content="#000000">
+    
+    <!-- 預設 SVG 鴿子 Logo 圖示 (Base64) -->
+    <link rel="apple-touch-icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%234F46E5'/><text x='50' y='68' font-size='55' text-anchor='middle'>🐦</text></svg>">
+    <link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%234F46E5'/><text x='50' y='68' font-size='55' text-anchor='middle'>🐦</text></svg>">
 
-    <link rel="apple-touch-icon" href="image_768266.png">
-    <link rel="icon" type="image/png" href="image_768266.png">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Firebase SDK (v9 Compact 版本) -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
     <style>
-        .holiday { color: #f87171; font-weight: bold; }
-        .day-cell { min-height: 105px; }
-
-        /* 美化 Pop-up 行事曆圖示與點擊範圍 */
-        input[type="date"]::-webkit-calendar-picker-indicator {
-            filter: invert(1);
-            cursor: pointer;
-            opacity: 0.8;
-            padding: 2px;
-        }
-        input[type="date"]::-webkit-calendar-picker-indicator:hover {
-            opacity: 1;
-        }
+        body { -webkit-tap-highlight-color: transparent; user-select: none; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
-<body class="bg-black text-zinc-100 min-h-screen pb-12 select-none">
+<body class="bg-slate-50 min-h-screen text-slate-800 pb-12">
 
-    <div class="max-w-6xl mx-auto px-4 py-6">
-        <!-- 頂部標題與控制列 -->
-        <div class="flex flex-col md:flex-row justify-between items-center mb-8 bg-zinc-900 p-6 rounded-2xl shadow-2xl border border-zinc-800 gap-4">
-            <div class="flex items-center gap-3">
-                <img src="image_768266.png" class="w-12 h-12 rounded-xl object-cover shadow-sm border border-zinc-700" alt="烏腦袋 Logo" onerror="this.style.display='none'">
-                <div>
-                    <h1 class="text-2xl md:text-3xl font-extrabold text-white tracking-tight flex items-center gap-2">
-                        烏腦袋 <span class="text-xs px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700">Pure Black</span>
-                    </h1>
-                    <p class="text-zinc-400 mt-1 text-sm flex items-center gap-2">
-                        <span id="syncStatus" class="inline-block w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></span>
-                        <span id="syncStatusText">雲端連線中...</span>
-                    </p>
-                </div>
-            </div>
-
-            <!-- 切換身份 -->
-            <div class="flex items-center gap-2 bg-black p-2 rounded-xl text-xs font-medium border border-zinc-800">
-                <span class="text-zinc-400">切換身份：</span>
-                <select id="userIdentity" onchange="window.switchUser(this.value)" class="bg-zinc-900 border border-zinc-700 rounded-lg px-2.5 py-1 text-indigo-400 font-bold focus:outline-none">
-                    <option value="WC_bb">👧 WC bb</option>
-                    <option value="TT_bb">👦 TT bb</option>
-                </select>
-            </div>
-
-            <button onclick="window.startNewDay()" class="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold px-6 py-3 rounded-xl shadow-lg transition-all flex items-center gap-2 w-full md:w-auto justify-center">
-                <i class="fa-solid fa-sun text-amber-300"></i> 重置今天狀態
-            </button>
+    <!-- 密碼未通過時顯示的鎖定畫面 -->
+    <div id="lock-screen" class="fixed inset-0 bg-slate-900 z-50 flex flex-col items-center justify-center p-6 text-white">
+        <div class="text-6xl mb-4 animate-bounce">🔒</div>
+        <h1 class="text-2xl font-bold mb-2">烏腦袋 Pigeon Brain</h1>
+        <p class="text-slate-400 text-sm mb-6">請輸入存取密碼以存取雲端資料庫</p>
+        <div class="w-full max-w-xs space-y-3">
+            <input type="password" id="password-input" placeholder="請輸入密碼..." class="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-center text-lg text-white focus:outline-none focus:border-indigo-500">
+            <button onclick="verifyPassword()" class="w-full py-3 bg-indigo-600 hover:bg-indigo-500 font-bold rounded-xl transition shadow-lg">解鎖 App</button>
         </div>
-
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            
-            <!-- 行事曆與隨手記 -->
-            <div class="lg:col-span-2 space-y-8">
-                <!-- 行事曆區塊 -->
-                <div class="bg-zinc-900 p-6 rounded-2xl shadow-2xl border border-zinc-800">
-                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                        <h2 class="text-xl font-bold flex items-center gap-2 text-white">
-                            <i class="fa-regular fa-calendar-days text-indigo-400"></i> Calendar
-                        </h2>
-                        <!-- 雙重篩選列 -->
-                        <div class="flex flex-wrap gap-1.5 bg-black p-1 rounded-xl text-xs border border-zinc-800">
-                            <div class="flex bg-zinc-900 p-0.5 rounded-lg border border-zinc-800">
-                                <button onclick="window.filterCalendarScope('all')" id="btn-cal-scope-all" class="px-2 py-0.5 rounded font-medium transition-all bg-indigo-600 text-white">全部範圍</button>
-                                <button onclick="window.filterCalendarScope('shared')" id="btn-cal-scope-shared" class="px-2 py-0.5 rounded font-medium transition-all text-zinc-400">🌐 共用</button>
-                                <button onclick="window.filterCalendarScope('private')" id="btn-cal-scope-private" class="px-2 py-0.5 rounded font-medium transition-all text-zinc-400">🔒 私人</button>
-                            </div>
-                            <div class="flex bg-zinc-900 p-0.5 rounded-lg border border-zinc-800">
-                                <button onclick="window.filterCalendarType('all')" id="btn-cal-type-all" class="px-2 py-0.5 rounded font-medium transition-all bg-indigo-600 text-white">全部類別</button>
-                                <button onclick="window.filterCalendarType('work')" id="btn-cal-type-work" class="px-2 py-0.5 rounded font-medium transition-all text-zinc-400">💼 公事</button>
-                                <button onclick="window.filterCalendarType('personal')" id="btn-cal-type-personal" class="px-2 py-0.5 rounded font-medium transition-all text-zinc-400">📁 私事</button>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- 🚀 新增：方便選年份與月份的 Fast Select 控制列 -->
-                    <div class="flex justify-between items-center mb-4 bg-black p-2 rounded-xl border border-zinc-800">
-                        <button onclick="window.changeMonth(-1)" class="p-2 hover:bg-zinc-800 rounded-lg text-zinc-300 transition-colors"><i class="fa-solid fa-chevron-left"></i></button>
-                        
-                        <div class="flex items-center gap-2">
-                            <select id="calYearSelect" onchange="window.jumpToYearMonth()" class="bg-zinc-900 border border-zinc-700 text-zinc-200 font-bold px-2 py-1 rounded-lg text-sm focus:outline-none cursor-pointer">
-                                <!-- 動態生成年份 -->
-                            </select>
-                            <select id="calMonthSelect" onchange="window.jumpToYearMonth()" class="bg-zinc-900 border border-zinc-700 text-zinc-200 font-bold px-2 py-1 rounded-lg text-sm focus:outline-none cursor-pointer">
-                                <option value="0">1月</option>
-                                <option value="1">2月</option>
-                                <option value="2">3月</option>
-                                <option value="3">4月</option>
-                                <option value="4">5月</option>
-                                <option value="5">6月</option>
-                                <option value="6">7月</option>
-                                <option value="7">8月</option>
-                                <option value="8">9月</option>
-                                <option value="9">10月</option>
-                                <option value="10">11月</option>
-                                <option value="11">12月</option>
-                            </select>
-                        </div>
-
-                        <button onclick="window.changeMonth(1)" class="p-2 hover:bg-zinc-800 rounded-lg text-zinc-300 transition-colors"><i class="fa-solid fa-chevron-right"></i></button>
-                    </div>
-
-                    <div class="grid grid-cols-7 gap-1 text-center text-sm font-semibold text-zinc-400 mb-2">
-                        <div class="text-red-400">日</div><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div class="text-indigo-400">六</div>
-                    </div>
-                    <div id="calendarGrid" class="grid grid-cols-7 gap-1.5"></div>
-                </div>
-
-                <!-- 隨手記雜事區塊 -->
-                <div class="bg-zinc-900 p-6 rounded-2xl shadow-2xl border border-zinc-800">
-                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                        <h2 class="text-xl font-bold flex items-center gap-2 text-white">
-                            <i class="fa-solid fa-pencil text-amber-400"></i> 隨手記雜事
-                        </h2>
-                        <div class="bg-black p-1 rounded-xl flex text-sm border border-zinc-800">
-                            <button onclick="window.filterTodos('all')" id="btn-todo-all" class="px-3 py-1.5 rounded-lg font-medium transition-all bg-zinc-800 text-white">全部</button>
-                            <button onclick="window.filterTodos('shared')" id="btn-todo-shared" class="px-3 py-1.5 rounded-lg font-medium transition-all text-zinc-400 hover:text-zinc-200">🌐 雙人共用</button>
-                            <button onclick="window.filterTodos('private')" id="btn-todo-private" class="px-3 py-1.5 rounded-lg font-medium transition-all text-zinc-400 hover:text-zinc-200">🔒 個人私密</button>
-                        </div>
-                    </div>
-
-                    <!-- 新增雜事輸入 -->
-                    <div class="flex flex-wrap gap-2 mb-4">
-                        <select id="todoScope" class="bg-black border border-zinc-800 text-zinc-200 rounded-xl px-3 py-2 font-medium text-xs focus:outline-none">
-                            <option value="shared">🌐 雙人共用</option>
-                            <option value="private">🔒 個人私密</option>
-                        </select>
-                        <select id="todoType" class="bg-black border border-zinc-800 text-zinc-200 rounded-xl px-3 py-2 font-medium text-xs focus:outline-none">
-                            <option value="personal">📁 私事</option>
-                            <option value="work">💼 公事</option>
-                        </select>
-                        <input type="date" id="todoDate" onclick="this.showPicker && this.showPicker()" class="bg-black border border-amber-500/50 text-zinc-200 rounded-xl px-2 py-2 text-xs focus:outline-none ring-1 ring-amber-500/30 cursor-pointer" required title="點擊選擇日期">
-                        <input type="text" id="todoInput" placeholder="輸入事項..." class="flex-1 bg-black border border-zinc-800 text-zinc-100 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                        <button onclick="window.addTodo()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-5 py-2 rounded-xl transition-colors text-sm">新增</button>
-                    </div>
-
-                    <ul id="todoList" class="space-y-2.5 max-h-72 overflow-y-auto pr-1"></ul>
-                </div>
-            </div>
-
-            <!-- 固定習慣 -->
-            <div class="bg-zinc-900 p-6 rounded-2xl shadow-2xl border border-zinc-800 h-fit">
-                <h2 class="text-xl font-bold flex items-center gap-2 mb-6 text-white">
-                    <i class="fa-solid fa-rotate text-emerald-400"></i> 固定習慣
-                </h2>
-
-                <div class="bg-black p-3 rounded-xl border border-zinc-800 mb-6 space-y-2.5">
-                    <div class="flex flex-wrap gap-2">
-                        <select id="habitScope" class="bg-zinc-900 border border-zinc-800 text-zinc-200 rounded-lg px-2 text-xs font-medium focus:outline-none">
-                            <option value="shared">🌐 共用</option>
-                            <option value="private">🔒 私密</option>
-                        </select>
-                        <select id="habitType" class="bg-zinc-900 border border-zinc-800 text-zinc-200 rounded-lg px-2 text-xs font-medium focus:outline-none">
-                            <option value="personal">📁 私事</option>
-                            <option value="work">💼 公事</option>
-                        </select>
-                        <select id="habitFreq" class="bg-zinc-900 border border-zinc-800 text-zinc-200 rounded-lg px-2 text-xs font-medium focus:outline-none">
-                            <option value="daily">每日重複</option>
-                            <option value="weekly">每周重複</option>
-                            <option value="monthly">每月重複</option>
-                            <option value="yearly">每年重複</option>
-                        </select>
-                    </div>
-                    <div class="flex gap-2 items-center">
-                        <input type="date" id="habitDate" onclick="this.showPicker && this.showPicker()" class="bg-zinc-900 border border-emerald-500/50 text-zinc-200 rounded-lg px-2 py-1 text-xs focus:outline-none ring-1 ring-emerald-500/30 cursor-pointer" required title="點擊選擇日期">
-                        <input type="text" id="habitInput" placeholder="新增習慣..." class="flex-1 bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                    </div>
-                    <button onclick="window.addHabit()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold py-2 rounded-lg transition-colors">➕ 加入固定清單</button>
-                </div>
-
-                <div class="space-y-4">
-                    <div>
-                        <h3 class="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2 flex items-center gap-1">
-                            📁 私事習慣
-                        </h3>
-                        <ul id="personalHabitList" class="space-y-2"></ul>
-                    </div>
-                    <div class="pt-2 border-t border-zinc-800">
-                        <h3 class="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2 flex items-center gap-1">
-                            💼 公事習慣
-                        </h3>
-                        <ul id="workHabitList" class="space-y-2"></ul>
-                    </div>
-                </div>
-            </div>
-
-        </div>
+        <p id="error-msg" class="text-red-400 text-xs mt-3 hidden">❌ 密碼錯誤，請重新輸入！</p>
     </div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-        import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
+    <!-- App 主體介面 (預設隱藏，密碼驗證通過後才顯示) -->
+    <div id="app-content" class="hidden">
+        <!-- 頂部 Header -->
+        <header class="bg-white border-b border-slate-200 sticky top-0 z-40 px-4 py-3 shadow-sm flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+                <span class="text-2xl">🐦</span>
+                <h1 class="font-bold text-lg text-slate-900">烏腦袋</h1>
+            </div>
+            
+            <!-- 身份切換器 -->
+            <div class="flex items-center bg-slate-100 p-1 rounded-lg text-sm border border-slate-200">
+                <button id="btn-user-wc" onclick="switchUser('WC_bb')" class="px-2.5 py-1 rounded-md transition font-medium">👧 WC bb</button>
+                <button id="btn-user-tt" onclick="switchUser('TT_bb')" class="px-2.5 py-1 rounded-md transition font-medium">👦 TT bb</button>
+            </div>
+        </header>
 
+        <!-- 主要內容區 -->
+        <main class="max-w-md mx-auto p-4 space-y-6">
+            
+            <!-- 🌐 雙人共用清單區塊 -->
+            <section class="bg-white rounded-2xl p-4 shadow-sm border border-indigo-100">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center space-x-2">
+                        <span class="text-xl">🌐</span>
+                        <h2 class="font-bold text-slate-800">雙人共用事項</h2>
+                    </div>
+                    <span id="sync-status" class="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium">⚡ 即時同步中</span>
+                </div>
+
+                <!-- 新增項目輸入框 -->
+                <div class="flex space-x-2 mb-4">
+                    <input type="text" id="shared-input" placeholder="新增共用事項..." class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-500">
+                    <button onclick="addSharedItem()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-indigo-700 transition">新增</button>
+                </div>
+
+                <!-- 清單列表 -->
+                <ul id="shared-list" class="space-y-2">
+                    <li class="text-center text-slate-400 text-xs py-4">資料載入中...</li>
+                </ul>
+            </section>
+
+            <!-- 🔒 個人私密筆記區塊 -->
+            <section class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200">
+                <div class="flex items-center space-x-2 mb-3">
+                    <span class="text-xl">🔒</span>
+                    <h2 class="font-bold text-slate-800"><span id="current-user-label">--</span> 的私密事項</h2>
+                </div>
+
+                <!-- 新增私密項目輸入框 -->
+                <div class="flex space-x-2 mb-4">
+                    <input type="text" id="private-input" placeholder="新增個人私密事項..." class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-500">
+                    <button onclick="addPrivateItem()" class="bg-slate-800 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-slate-700 transition">新增</button>
+                </div>
+
+                <!-- 清單列表 -->
+                <ul id="private-list" class="space-y-2">
+                    <li class="text-center text-slate-400 text-xs py-4">資料載入中...</li>
+                </ul>
+            </section>
+
+            <!-- 重新鎖定按鈕 -->
+            <div class="text-center pt-2">
+                <button onclick="lockApp()" class="text-xs text-slate-400 hover:text-slate-600 underline">🔒 重新鎖定 App (清除本地認證)</button>
+            </div>
+        </main>
+    </div>
+
+    <!-- 邏輯腳本 -->
+    <script>
+        // ==========================================
+        // 1. 安全密碼設定 (請在下方修改為你們的密碼)
+        // ==========================================
+        const APP_PASSWORD = "20241225"; 
+
+        // ==========================================
+        // 2. Firebase 金鑰設定 (請填入你的 Firebase 設定)
+        // ==========================================
         const firebaseConfig = {
             apiKey: "AIzaSyBRTeWd0jgIlItcUzcQhEHS4juHjqo-6CU",
             authDomain: "shared-brain-32e5b.firebaseapp.com",
@@ -235,470 +127,170 @@
             appId: "1:13262366279:web:7df3fc8a5718ee5f163362"
         };
 
-        const hkHolidays2026 = {
-            "2027-01-01": "元旦", "2027-02-06": "農曆正月初一", "2027-02-08": "農曆正月初三", "2027-02-09": "農曆年初二補假", "2027-03-26": "耶穌受難節", "2027-03-27": "耶穌受難節翌日", "2027-03-29": "復活節星期一", "2027-04-05": "清明節", "2027-05-13": "佛誕", "2027-06-09": "端午節", "2027-07-01": "特區成立紀念日", "2027-09-16": "中秋節翌日", "2027-10-01": "國慶日", "2027-10-08": "重陽節", "2027-12-25": "聖誕節", "2027-12-27": "聖誕節後第一個周日補假",
-            "2028-01-01": "元旦", "2028-01-26": "農曆正月初一", "2028-01-27": "農曆正月初二", "2028-01-28": "農曆正月初三", "2028-04-04": "清明節", "2028-04-14": "耶穌受難節", "2028-04-15": "耶穌受難節翌日", "2028-04-17": "復活節星期一", "2028-05-02": "佛誕", "2028-05-29": "端午節", "2028-07-01": "特區成立紀念日", "2028-10-02": "國慶日翌日補假", "2028-10-04": "中秋節翌日", "2028-10-26": "重陽節", "2028-12-25": "聖誕節", "2028-12-26": "聖誕節後第一個周日",
-            "2029-01-01": "元旦", "2029-02-13": "農曆正月初一", "2029-02-14": "農曆正月初二", "2029-02-15": "農曆正月初三", "2029-03-30": "耶穌受難節", "2029-03-31": "耶穌受難節翌日", "2029-04-02": "復活節星期一", "2029-04-05": "清明節", "2029-05-21": "佛誕翌日補假", "2029-06-16": "端午節", "2029-07-02": "特區成立紀念日翌日補假", "2029-09-24": "中秋節翌日補假", "2029-10-01": "國慶日", "2029-10-16": "重陽節", "2029-12-25": "聖誕節", "2029-12-26": "聖誕節後第一個周日",
-            "2030-01-01": "元旦", "2030-02-02": "農曆正月初一", "2030-02-04": "農曆正月初三", "2030-02-05": "農曆正月初四", "2030-04-05": "清明節", "2030-04-19": "耶穌受難節", "2030-04-20": "耶穌受難節翌日", "2030-04-22": "復活節星期一", "2030-05-09": "佛誕", "2030-06-05": "端午節", "2030-07-01": "特區成立紀念日", "2030-09-13": "中秋節翌日", "2030-10-01": "國慶日", "2030-10-07": "重陽節翌日補假", "2030-12-25": "聖誕節", "2030-12-26": "聖誕節後第一個周日",
-            "2031-01-01": "元旦", "2031-01-23": "農曆正月初一", "2031-01-24": "農曆正月初二", "2031-01-25": "農曆正月初三", "2031-04-05": "清明節", "2031-04-11": "耶穌受難節", "2031-04-12": "耶穌受難節翌日", "2031-04-14": "復活節星期一", "2031-05-28": "佛誕", "2031-06-25": "端午節", "2031-07-01": "特區成立紀念日", "2031-10-01": "國慶日", "2031-10-02": "中秋節翌日", "2031-10-24": "重陽節", "2031-12-25": "聖誕節", "2031-12-26": "聖誕節後第一個周日"
-        };
-
-        window.currentUserId = localStorage.getItem('selected_brain_user_id') || 'WC_bb';
-        document.getElementById('userIdentity').value = window.currentUserId;
-
-        window.switchUser = function(newUserId) {
-            window.currentUserId = newUserId;
-            localStorage.setItem('selected_brain_user_id', newUserId);
-            bindPrivateListener();
-        };
-
-        if ("Notification" in window && Notification.permission !== "granted") {
-            Notification.requestPermission();
-        }
-
-        window.sharedState = { habits: {}, todos: {}, history: {} };
-        window.privateState = { habits: {}, todos: {}, history: {} };
-
-        const today = new Date();
-        window.currentYear = today.getFullYear();
-        window.currentMonth = today.getMonth();
-        window.todoFilter = 'all';
-        window.calScopeFilter = 'all'; 
-        window.calTypeFilter = 'all';  
-
         let db = null;
+        let currentUser = localStorage.getItem("pigeon_user") || "WC_bb";
 
-        try {
-            const app = initializeApp(firebaseConfig);
-            db = getDatabase(app);
+        // ==========================================
+        // 3. 密碼驗證邏輯
+        // ==========================================
+        function checkAuth() {
+            const isAuth = localStorage.getItem("pigeon_auth");
+            if (isAuth === "true") {
+                unlockApp();
+            }
+        }
+
+        function verifyPassword() {
+            const input = document.getElementById("password-input").value;
+            if (input === APP_PASSWORD) {
+                localStorage.setItem("pigeon_auth", "true");
+                unlockApp();
+            } else {
+                document.getElementById("error-msg").classList.remove("hidden");
+            }
+        }
+
+        function unlockApp() {
+            document.getElementById("lock-screen").classList.add("hidden");
+            document.getElementById("app-content").classList.remove("hidden");
+            initFirebase();
+        }
+
+        function lockApp() {
+            localStorage.removeItem("pigeon_auth");
+            location.reload();
+        }
+
+        // 支持按 Enter 鍵解鎖
+        document.getElementById("password-input")?.addEventListener("keypress", function(e) {
+            if (e.key === "Enter") verifyPassword();
+        });
+
+        // ==========================================
+        // 4. Firebase 初始化與資料同步
+        // ==========================================
+        function initFirebase() {
+            if (!firebase.apps.length) {
+                firebase.initializeApp(firebaseConfig);
+            }
+            db = firebase.database();
             
-            onValue(ref(db, 'shared_brain_state'), (snapshot) => {
-                const data = snapshot.val();
-                window.sharedState = data || { habits: {}, todos: {}, history: {} };
-                updateSyncUI(true);
-                renderAll();
-                checkNotifications();
+            updateUserUI();
+            listenToSharedData();
+            listenToPrivateData();
+        }
+
+        // 切換使用者身份
+        function switchUser(user) {
+            currentUser = user;
+            localStorage.setItem("pigeon_user", user);
+            updateUserUI();
+            listenToPrivateData();
+        }
+
+        function updateUserUI() {
+            const btnWc = document.getElementById("btn-user-wc");
+            const btnTt = document.getElementById("btn-user-tt");
+            const label = document.getElementById("current-user-label");
+
+            if (currentUser === "WC_bb") {
+                btnWc.className = "px-2.5 py-1 rounded-md transition font-medium bg-white text-indigo-600 shadow-sm";
+                btnTt.className = "px-2.5 py-1 rounded-md transition font-medium text-slate-500 hover:text-slate-800";
+                label.innerText = "👧 WC bb";
+            } else {
+                btnTt.className = "px-2.5 py-1 rounded-md transition font-medium bg-white text-indigo-600 shadow-sm";
+                btnWc.className = "px-2.5 py-1 rounded-md transition font-medium text-slate-500 hover:text-slate-800";
+                label.innerText = "👦 TT bb";
+            }
+        }
+
+        // --- 🌐 共用事項 Firebase 操作 ---
+        function listenToSharedData() {
+            db.ref("shared_brain_state").on("value", (snapshot) => {
+                const data = snapshot.val() || {};
+                renderList("shared-list", data, true);
             });
-
-            bindPrivateListener();
-
-        } catch(e) {
-            updateSyncUI(false);
         }
 
-        function bindPrivateListener() {
-            if (!db || !window.currentUserId) return;
-            onValue(ref(db, `private_brain_state_${window.currentUserId}`), (snapshot) => {
-                const data = snapshot.val();
-                window.privateState = data || { habits: {}, todos: {}, history: {} };
-                renderAll();
-                checkNotifications();
+        function addSharedItem() {
+            const input = document.getElementById("shared-input");
+            const text = input.value.trim();
+            if (!text) return;
+
+            db.ref("shared_brain_state").push({
+                text: text,
+                done: false,
+                author: currentUser,
+                timestamp: Date.now()
+            });
+            input.value = "";
+        }
+
+        // --- 🔒 私密事項 Firebase 操作 ---
+        function listenToPrivateData() {
+            const privateRef = `private_brain_state_${currentUser}`;
+            db.ref(privateRef).off(); // 先取消舊監聽
+            db.ref(privateRef).on("value", (snapshot) => {
+                const data = snapshot.val() || {};
+                renderList("private-list", data, false);
             });
         }
 
-        function updateSyncUI(isSuccess) {
-            const syncDot = document.getElementById('syncStatus');
-            const syncText = document.getElementById('syncStatusText');
-            if(syncDot && syncText){
-                syncDot.className = `inline-block w-2.5 h-2.5 rounded-full ${isSuccess ? 'bg-emerald-500' : 'bg-red-500'}`;
-                syncText.innerText = isSuccess ? "雲端即時同步中" : "未連線或未配置金鑰";
-            }
-        }
+        function addPrivateItem() {
+            const input = document.getElementById("private-input");
+            const text = input.value.trim();
+            if (!text) return;
 
-        function pushSharedToCloud() {
-            if (db) set(ref(db, 'shared_brain_state'), window.sharedState);
-        }
-
-        function pushPrivateToCloud() {
-            if (db && window.currentUserId) set(ref(db, `private_brain_state_${window.currentUserId}`), window.privateState);
-        }
-
-        function getTodayStr() {
-            const now = new Date();
-            return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
-        }
-
-        function renderAll() {
-            window.renderHabits();
-            window.renderTodos();
-            window.renderCalendar();
-        }
-
-        function checkNotifications() {
-            if (!("Notification" in window) || Notification.permission !== "granted") return;
-
-            const todayObj = new Date();
-            todayObj.setHours(0,0,0,0);
-
-            const tomorrowObj = new Date(todayObj);
-            tomorrowObj.setDate(tomorrowObj.getDate() + 1);
-
-            const checkList = (todos) => {
-                Object.values(todos || {}).forEach(t => {
-                    if (t.done || !t.date) return;
-                    const taskDate = new Date(t.date);
-                    taskDate.setHours(0,0,0,0);
-
-                    if (taskDate.getTime() === todayObj.getTime()) {
-                        new Notification("⚠️ 烏腦袋事項今日到期！", { body: `「${t.text}」今天到期，請盡快完成！` });
-                    } else if (taskDate.getTime() === tomorrowObj.getTime()) {
-                        new Notification("⏰ 烏腦袋事項明日到期提示", { body: `提醒您：「${t.text}」明天就要到期囉！` });
-                    } else if (taskDate.getTime() < todayObj.getTime()) {
-                        new Notification("🚨 烏腦袋事項已逾期！", { body: `「${t.text}」已經超過預定日期未完成！` });
-                    }
-                });
-            };
-
-            checkList(window.sharedState.todos);
-            checkList(window.privateState.todos);
-        }
-
-        window.filterCalendarScope = function(scope) {
-            window.calScopeFilter = scope;
-            ['all', 'shared', 'private'].forEach(s => {
-                const btn = document.getElementById(`btn-cal-scope-${s}`);
-                if (btn) btn.className = (s === scope) ? "px-2 py-0.5 rounded font-medium transition-all bg-indigo-600 text-white shadow-sm" : "px-2 py-0.5 rounded font-medium transition-all text-zinc-400";
+            const privateRef = `private_brain_state_${currentUser}`;
+            db.ref(privateRef).push({
+                text: text,
+                done: false,
+                timestamp: Date.now()
             });
-            window.renderCalendar();
-        };
-
-        window.filterCalendarType = function(type) {
-            window.calTypeFilter = type;
-            ['all', 'work', 'personal'].forEach(t => {
-                const btn = document.getElementById(`btn-cal-type-${t}`);
-                if (btn) btn.className = (t === type) ? "px-2 py-0.5 rounded font-medium transition-all bg-indigo-600 text-white shadow-sm" : "px-2 py-0.5 rounded font-medium transition-all text-zinc-400";
-            });
-            window.renderCalendar();
-        };
-
-        function isHabitActiveOnDate(habit, targetDateStr) {
-            if (!habit.date) return false;
-            
-            const startDate = new Date(habit.date);
-            const targetDate = new Date(targetDateStr);
-            
-            startDate.setHours(0,0,0,0);
-            targetDate.setHours(0,0,0,0);
-
-            if (targetDate < startDate) return false;
-
-            const freq = habit.freq || 'daily';
-
-            if (freq === 'daily') {
-                return true;
-            } else if (freq === 'weekly') {
-                return startDate.getDay() === targetDate.getDay();
-            } else if (freq === 'monthly') {
-                return startDate.getDate() === targetDate.getDate();
-            } else if (freq === 'yearly') {
-                return startDate.getMonth() === targetDate.getMonth() && startDate.getDate() === targetDate.getDate();
-            }
-            return false;
+            input.value = "";
         }
 
-        // 🚀 新增：初始化年份選單 (前後延伸 5 年)
-        function initYearSelect() {
-            const yearSelect = document.getElementById('calYearSelect');
-            if (!yearSelect) return;
-            yearSelect.innerHTML = '';
-            const startYear = window.currentYear - 3;
-            const endYear = window.currentYear + 5;
-            for (let y = startYear; y <= endYear; y++) {
-                const opt = document.createElement('option');
-                opt.value = y;
-                opt.innerText = `${y}年`;
-                if (y === window.currentYear) opt.selected = true;
-                yearSelect.appendChild(opt);
-            }
+        // --- 切換完成狀態與刪除 ---
+        function toggleDone(key, isShared, currentStatus) {
+            const path = isShared ? `shared_brain_state/${key}` : `private_brain_state_${currentUser}/${key}`;
+            db.ref(path).update({ done: !currentStatus });
         }
 
-        // 🚀 新增：選擇年份或月份時跳轉
-        window.jumpToYearMonth = function() {
-            const yearVal = parseInt(document.getElementById('calYearSelect').value);
-            const monthVal = parseInt(document.getElementById('calMonthSelect').value);
-            window.currentYear = yearVal;
-            window.currentMonth = monthVal;
-            window.renderCalendar();
-        };
+        function deleteItem(key, isShared) {
+            const path = isShared ? `shared_brain_state/${key}` : `private_brain_state_${currentUser}/${key}`;
+            db.ref(path).remove();
+        }
 
-        // 🚀 新增：點擊事項時自動跳轉至對應月份
-        window.jumpToDateMonth = function(dateStr) {
-            if (!dateStr) return;
-            const parts = dateStr.split('-');
-            if (parts.length === 3) {
-                window.currentYear = parseInt(parts[0]);
-                window.currentMonth = parseInt(parts[1]) - 1; // 月份從 0 開始
-                window.renderCalendar();
-            }
-        };
+        // --- 渲染畫面 ---
+        function renderList(elementId, data, isShared) {
+            const container = document.getElementById(elementId);
+            container.innerHTML = "";
 
-        // 行事曆繪製
-        window.renderCalendar = function() {
-            const grid = document.getElementById('calendarGrid');
-            if (!grid) return;
-            
-            grid.innerHTML = '';
-
-            // 更新年份與月份選單狀態
-            initYearSelect();
-            const monthSelect = document.getElementById('calMonthSelect');
-            if (monthSelect) monthSelect.value = window.currentMonth;
-
-            const firstDay = new Date(window.currentYear, window.currentMonth, 1).getDay();
-            const daysInMonth = new Date(window.currentYear, window.currentMonth + 1, 0).getDate();
-
-            for (let i = 0; i < firstDay; i++) {
-                const emptyCell = document.createElement('div');
-                emptyCell.className = "bg-zinc-950 rounded-xl border border-dashed border-zinc-800/60 day-cell";
-                grid.appendChild(emptyCell);
+            const keys = Object.keys(data);
+            if (keys.length === 0) {
+                container.innerHTML = `<li class="text-center text-slate-400 text-xs py-4">尚無任何事項</li>`;
+                return;
             }
 
-            for (let day = 1; day <= daysInMonth; day++) {
-                const cell = document.createElement('div');
-                const dateStr = `${window.currentYear}-${String(window.currentMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+            keys.reverse().forEach(key => {
+                const item = data[key];
+                const li = document.createElement("li");
+                li.className = "flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100";
                 
-                let isHoliday = hkHolidays2026[dateStr];
-                let cellClass = "bg-black p-2 rounded-xl border border-zinc-800 flex flex-col justify-between items-start day-cell shadow-sm overflow-hidden";
-                if (dateStr === getTodayStr()) cellClass += " ring-2 ring-indigo-500 ring-offset-2 ring-offset-black";
-
-                let itemsHtml = '<div class="w-full space-y-1 mt-1 text-[10px] overflow-y-auto max-h-16 pr-0.5">';
-                
-                const appendTodosToCalendar = (todos, isPrivate) => {
-                    if (window.calScopeFilter === 'shared' && isPrivate) return;
-                    if (window.calScopeFilter === 'private' && !isPrivate) return;
-
-                    Object.values(todos || {}).forEach(item => {
-                        if (window.calTypeFilter !== 'all' && item.type !== window.calTypeFilter) return;
-                        if (item.date === dateStr) {
-                            const badge = isPrivate ? '🔒' : '🌐';
-                            itemsHtml += `<div class="truncate px-1 py-0.5 rounded ${item.done ? 'line-through bg-zinc-900 text-zinc-600' : (isPrivate ? 'bg-amber-950/80 text-amber-200 border border-amber-800/50' : 'bg-indigo-950/80 text-indigo-200 border border-indigo-800/50')}">${badge} ${item.text}</div>`;
-                        }
-                    });
-                };
-
-                const appendHabitsToCalendar = (habits, isPrivate) => {
-                    if (window.calScopeFilter === 'shared' && isPrivate) return;
-                    if (window.calScopeFilter === 'private' && !isPrivate) return;
-
-                    Object.values(habits || {}).forEach(habit => {
-                        if (window.calTypeFilter !== 'all' && habit.type !== window.calTypeFilter) return;
-                        if (isHabitActiveOnDate(habit, dateStr)) {
-                            itemsHtml += `<div class="truncate px-1 py-0.5 rounded bg-emerald-950/80 text-emerald-200 border border-emerald-800/50">🔄 ${habit.text}</div>`;
-                        }
-                    });
-                };
-
-                appendTodosToCalendar(window.sharedState.todos, false);
-                appendTodosToCalendar(window.privateState.todos, true);
-                appendHabitsToCalendar(window.sharedState.habits, false);
-                appendHabitsToCalendar(window.privateState.habits, true);
-
-                itemsHtml += '</div>';
-
-                cell.className = cellClass;
-                cell.innerHTML = `
-                    <div class="w-full flex justify-between items-start">
-                        <span class="text-xs ${isHoliday ? 'holiday' : 'text-zinc-300'}">${day}</span>
-                        ${isHoliday ? `<span class="text-[9px] bg-red-950 text-red-300 border border-red-800/40 px-1 rounded truncate max-w-[45px]" title="${isHoliday}">${isHoliday}</span>` : ''}
-                    </div>
-                    ${itemsHtml}
-                `;
-                grid.appendChild(cell);
-            }
-        };
-
-        window.renderHabits = function() {
-            const pList = document.getElementById('personalHabitList');
-            const wList = document.getElementById('workHabitList');
-            if (!pList || !wList) return;
-            pList.innerHTML = ''; wList.innerHTML = '';
-
-            const freqMap = { daily: '每日', weekly: '每周', monthly: '每月', yearly: '每年' };
-
-            const appendItem = (id, habit, isPrivate) => {
-                const li = document.createElement('li');
-                li.className = `flex items-center justify-between p-2.5 rounded-xl border border-zinc-800 transition-all ${habit.done ? 'bg-black text-zinc-600' : 'bg-zinc-900 hover:bg-black'}`;
                 li.innerHTML = `
-                    <label class="flex items-center gap-2 flex-1 cursor-pointer">
-                        <input type="checkbox" ${habit.done ? 'checked' : ''} onchange="window.toggleHabit('${id}', ${isPrivate})" class="w-4 h-4 text-emerald-500 bg-black border-zinc-700 rounded focus:ring-emerald-500">
-                        <span onclick="window.jumpToDateMonth('${habit.date}')" title="點擊跳轉至對應月份 Calendar" class="${habit.done ? 'line-through text-zinc-600' : 'text-zinc-200 font-medium text-sm hover:text-indigo-400 hover:underline'}">${habit.text}</span>
-                        <span class="text-[9px] px-1 rounded bg-zinc-800 text-zinc-400">${freqMap[habit.freq || 'daily']}</span>
-                        <span onclick="window.jumpToDateMonth('${habit.date}')" class="text-[9px] px-1 rounded bg-black text-zinc-500 hover:text-indigo-400 cursor-pointer">📅 ${habit.date}起</span>
-                        <span class="text-[10px] px-1 rounded ${isPrivate ? 'bg-amber-950 text-amber-300 border border-amber-800/50' : 'bg-indigo-950 text-indigo-300 border border-indigo-800/50'}">${isPrivate ? '🔒' : '🌐'}</span>
-                    </label>
-                    <button onclick="window.deleteHabit('${id}', ${isPrivate})" class="text-zinc-600 hover:text-red-400 p-1 text-xs"><i class="fa-solid fa-trash"></i></button>
-                `;
-                if (habit.type === 'work') wList.appendChild(li);
-                else pList.appendChild(li);
-            };
-
-            Object.keys(window.sharedState.habits || {}).forEach(id => appendItem(id, window.sharedState.habits[id], false));
-            Object.keys(window.privateState.habits || {}).forEach(id => appendItem(id, window.privateState.habits[id], true));
-        };
-
-        window.renderTodos = function() {
-            const list = document.getElementById('todoList');
-            if (!list) return;
-            list.innerHTML = '';
-
-            const appendTodo = (id, todo, isPrivate) => {
-                if (window.todoFilter === 'shared' && isPrivate) return;
-                if (window.todoFilter === 'private' && !isPrivate) return;
-
-                const li = document.createElement('li');
-                const borderColors = todo.type === 'work' ? 'border-l-blue-500' : 'border-l-pink-500';
-                li.className = `flex items-center justify-between p-3 rounded-xl bg-black border border-zinc-800 border-l-4 ${borderColors} shadow-sm transition-all ${todo.done ? 'opacity-40' : ''}`;
-                li.innerHTML = `
-                    <label class="flex items-center gap-2.5 flex-1 cursor-pointer">
-                        <input type="checkbox" ${todo.done ? 'checked' : ''} onchange="window.toggleTodo('${id}', ${isPrivate})" class="w-4 h-4 text-indigo-500 bg-black border-zinc-700 rounded focus:ring-indigo-500">
-                        <span onclick="window.jumpToDateMonth('${todo.date}')" title="點擊跳轉至對應月份 Calendar" class="${todo.done ? 'line-through text-zinc-600' : 'text-zinc-200 font-medium text-sm hover:text-indigo-400 hover:underline'}">${todo.text}</span>
-                        <span onclick="window.jumpToDateMonth('${todo.date}')" class="text-[10px] bg-zinc-900 text-zinc-400 px-1 rounded border border-zinc-800 hover:text-indigo-400 cursor-pointer">📅 ${todo.date}</span>
-                        <span class="text-[10px] px-1.5 py-0.5 rounded ${isPrivate ? 'bg-amber-950 text-amber-300 border border-amber-800/50' : 'bg-indigo-950 text-indigo-300 border border-indigo-800/50'}">${isPrivate ? '🔒' : '🌐'}</span>
-                    </label>
-                    <div class="flex items-center gap-1">
-                        <button onclick="window.convertToHabit('${id}', ${isPrivate})" class="text-xs bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-800/50 px-2 py-1 rounded-md" title="轉為固定習慣">🔄 轉習慣</button>
-                        <button onclick="window.deleteTodo('${id}', ${isPrivate})" class="text-zinc-600 hover:text-red-400 p-1 text-sm"><i class="fa-solid fa-trash"></i></button>
+                    <div class="flex items-center space-x-2.5 flex-1 min-w-0 pr-2">
+                        <input type="checkbox" ${item.done ? 'checked' : ''} onchange="toggleDone('${key}', ${isShared}, ${item.done})" class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300">
+                        <span class="text-sm text-slate-700 truncate ${item.done ? 'line-through text-slate-400' : ''}">${item.text}</span>
+                        ${isShared && item.author ? `<span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-200 text-slate-600">${item.author === 'WC_bb' ? '👧' : '👦'}</span>` : ''}
                     </div>
+                    <button onclick="deleteItem('${key}', ${isShared})" class="text-slate-300 hover:text-red-500 text-xs p-1">✕</button>
                 `;
-                list.appendChild(li);
-            };
-
-            Object.keys(window.sharedState.todos || {}).forEach(id => appendTodo(id, window.sharedState.todos[id], false));
-            Object.keys(window.privateState.todos || {}).forEach(id => appendTodo(id, window.privateState.todos[id], true));
-        };
-
-        window.addTodo = function() {
-            const input = document.getElementById('todoInput');
-            const type = document.getElementById('todoType').value;
-            const scope = document.getElementById('todoScope').value;
-            const date = document.getElementById('todoDate').value;
-            
-            if (!date) return alert('「隨手記雜事」必須選擇指定日期才能新增！');
-            if (!input.value.trim()) return alert('請輸入事項內容！');
-
-            const id = 't_' + Date.now();
-            const isPrivate = scope === 'private';
-            const targetState = isPrivate ? window.privateState : window.sharedState;
-            
-            if (!targetState.todos) targetState.todos = {};
-            targetState.todos[id] = { text: input.value.trim(), type: type, date: date, done: false };
-            input.value = '';
-            
-            if (isPrivate) pushPrivateToCloud();
-            else pushSharedToCloud();
-            
-            // 自動切換到對應月份
-            window.jumpToDateMonth(date);
-            renderAll();
-        };
-
-        window.addHabit = function() {
-            const input = document.getElementById('habitInput');
-            const type = document.getElementById('habitType').value;
-            const scope = document.getElementById('habitScope').value;
-            const freq = document.getElementById('habitFreq').value;
-            const date = document.getElementById('habitDate').value;
-
-            if (!date) return alert('「固定習慣」必須選擇指定/起始日期才能新增！');
-            if (!input.value.trim()) return alert('請輸入習慣名稱！');
-
-            const id = 'h_' + Date.now();
-            const targetState = scope === 'private' ? window.privateState : window.sharedState;
-            if (!targetState.habits) targetState.habits = {};
-            targetState.habits[id] = { text: input.value.trim(), type: type, freq: freq, date: date, done: false };
-            input.value = '';
-            
-            if (scope === 'private') pushPrivateToCloud();
-            else pushSharedToCloud();
-
-            // 自動切換到對應月份
-            window.jumpToDateMonth(date);
-            renderAll();
-        };
-
-        window.convertToHabit = function(id, isPrivate) {
-            const targetState = isPrivate ? window.privateState : window.sharedState;
-            const todo = targetState.todos[id];
-            if (!todo) return;
-
-            const freq = prompt('請選擇重複頻率 (daily: 每日, weekly: 每周, monthly: 每月, yearly: 每年)：', 'daily');
-            if (!['daily', 'weekly', 'monthly', 'yearly'].includes(freq)) return alert('頻率輸入無效！');
-
-            const habitId = 'h_' + Date.now();
-            if (!targetState.habits) targetState.habits = {};
-            targetState.habits[habitId] = {
-                text: todo.text,
-                type: todo.type,
-                freq: freq,
-                date: todo.date || getTodayStr(),
-                done: false
-            };
-
-            if (isPrivate) pushPrivateToCloud(); else pushSharedToCloud();
-            alert('已成功新增至固定習慣！');
-            renderAll();
-        };
-
-        window.toggleHabit = function(id, isPrivate) {
-            const targetState = isPrivate ? window.privateState : window.sharedState;
-            if (targetState.habits && targetState.habits[id]) {
-                targetState.habits[id].done = !targetState.habits[id].done;
-                if (isPrivate) pushPrivateToCloud(); else pushSharedToCloud();
-                renderAll();
-            }
-        };
-
-        window.deleteHabit = function(id, isPrivate) {
-            const targetState = isPrivate ? window.privateState : window.sharedState;
-            if (targetState.habits) delete targetState.habits[id];
-            if (isPrivate) pushPrivateToCloud(); else pushSharedToCloud();
-            renderAll();
-        };
-
-        window.toggleTodo = function(id, isPrivate) {
-            const targetState = isPrivate ? window.privateState : window.sharedState;
-            if (targetState.todos && targetState.todos[id]) {
-                targetState.todos[id].done = !targetState.todos[id].done;
-                if (isPrivate) pushPrivateToCloud(); else pushSharedToCloud();
-                renderAll();
-            }
-        };
-
-        window.deleteTodo = function(id, isPrivate) {
-            const targetState = isPrivate ? window.privateState : window.sharedState;
-            if (targetState.todos) delete targetState.todos[id];
-            if (isPrivate) pushPrivateToCloud(); else pushSharedToCloud();
-            renderAll();
-        };
-
-        window.filterTodos = function(type) {
-            window.todoFilter = type;
-            ['all', 'shared', 'private'].forEach(t => {
-                const btn = document.getElementById(`btn-todo-${t}`);
-                if (btn) btn.className = (t === type) ? "px-3 py-1.5 rounded-lg font-medium transition-all bg-zinc-800 text-white shadow-sm" : "px-3 py-1.5 rounded-lg font-medium transition-all text-zinc-400 hover:text-zinc-200";
+                container.appendChild(li);
             });
-            window.renderTodos();
-        };
+        }
 
-        window.changeMonth = function(direction) {
-            window.currentMonth += direction;
-            if (window.currentMonth > 11) { window.currentMonth = 0; window.currentYear++; }
-            else if (window.currentMonth < 0) { window.currentMonth = 11; window.currentYear--; }
-            window.renderCalendar();
-        };
-
-        window.startNewDay = function() {
-            if (confirm('確定要開啟新的一天嗎？這會重置今天的習慣勾選狀態。')) {
-                Object.keys(window.sharedState.habits || {}).forEach(id => window.sharedState.habits[id].done = false);
-                Object.keys(window.privateState.habits || {}).forEach(id => window.privateState.habits[id].done = false);
-                
-                pushSharedToCloud();
-                pushPrivateToCloud();
-                renderAll();
-            }
-        };
-
-        renderAll();
+        // 頁面載入時先執行密碼檢查
+        window.onload = checkAuth;
     </script>
 </body>
 </html>
